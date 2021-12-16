@@ -366,7 +366,8 @@ let api = function Binance( options = {} ) {
             symbol: symbol,
             side: side,
             type: 'LIMIT',
-            quantity: quantity
+            quantity: quantity,
+	    quoteOrderQty: flags.quoteOrderQty
         };
         if ( typeof flags.type !== 'undefined' ) opt.type = flags.type;
         if ( opt.type.includes( 'LIMIT' ) ) {
