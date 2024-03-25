@@ -360,17 +360,28 @@ let api = function Binance( options = {} ) {
      * @return {undefined}
      */
     const order = ( side, symbol, quantity, price, flags = {}, callback = false ) => {
-        let endpoint = flags.type === 'OCO' ? 'v3/order/oco' : 'v3/order';
+        let endpoint;
+        switch (flags.type) {
+            case 'OCO':
+                endpoint = 'v3/order/oco';
+                break;
+            case 'REPLACE':
+                endpoint = 'v3/order/cancelReplace';
+                break;
+            default:
+                endpoint = 'v3/order';
+        }
+
         if ( Binance.options.test ) endpoint += '/test';
         let opt = {
             symbol: symbol,
             side: side,
             type: 'LIMIT',
             quantity: quantity,
-	    quoteOrderQty: flags.quoteOrderQty
+            quoteOrderQty: flags.quoteOrderQty
         };
         if ( typeof flags.type !== 'undefined' ) opt.type = flags.type;
-        if ( opt.type.includes( 'LIMIT' ) ) {
+        if ( opt.type.includes( 'LIMIT' ) || (flags.replaceType && flags.replaceType.includes( 'LIMIT' )) ) {
             opt.price = price;
             if ( opt.type !== 'LIMIT_MAKER' ) {
                 opt.timeInForce = 'GTC';
@@ -388,6 +399,16 @@ let api = function Binance( options = {} ) {
             if ( typeof flags.listClientOrderId !== 'undefined' ) opt.listClientOrderId = flags.listClientOrderId;
             if ( typeof flags.limitClientOrderId !== 'undefined' ) opt.limitClientOrderId = flags.limitClientOrderId;
             if ( typeof flags.stopClientOrderId !== 'undefined' ) opt.stopClientOrderId = flags.stopClientOrderId;
+        }
+        if ( opt.type === 'REPLACE' ) {
+            opt.cancelReplaceMode = flags.cancelReplaceMode === 'ALLOW_FAILURE' ? 'ALLOW_FAILURE' : 'STOP_ON_FAILURE';
+            opt.cancelRestrictions = [
+                'ONLY_NEW', 'ONLY_PARTIALLY_FILLED', 'PARTIALLY_FILLED'
+            ].includes(flags.cancelRestrictions) ? flags.cancelRestrictions : 'ONLY_NEW'
+            if ( !flags.cancelOrderId ) throw Error('cancelOrderId: must set cancelOrderId to be canceled' );
+            if ( !flags.replaceType ) throw Error('replaceType: must set replaceType to be replaced' );
+            opt.cancelOrderId = flags.cancelOrderId // required
+            opt.type = flags.replaceType // required
         }
         if ( typeof flags.timeInForce !== 'undefined' ) opt.timeInForce = flags.timeInForce;
         if ( typeof flags.newOrderRespType !== 'undefined' ) opt.newOrderRespType = flags.newOrderRespType;
